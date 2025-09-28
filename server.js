@@ -11,10 +11,11 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static("public")); // serve index.html from public/
 
-// In-memory storage (reset on server restart)
-let users = {}; // { username: { passwordHash, onCount, offCount, driveChecked, friends: [], token } }
+// ----------------- In-memory storage -----------------
+let users = {}; 
+// Format: { username: { username, passwordHash, onCount, offCount, driveChecked, friends: [], token } }
 
-// Simple token-based auth
+// ----------------- Auth middleware -----------------
 function authMiddleware(req, res, next) {
   const auth = req.headers["authorization"];
   if (!auth) return res.status(401).json({ error: "Missing token" });
@@ -33,7 +34,7 @@ app.post("/login", async (req, res) => {
   if (!username || !password) return res.status(400).json({ error: "Missing username/password" });
 
   if (!users[username]) {
-    // create new user
+    // Register new user
     const hash = await bcrypt.hash(password, 10);
     users[username] = { username, passwordHash: hash, onCount: 0, offCount: 0, driveChecked: false, friends: [], token: null };
   }
@@ -41,18 +42,11 @@ app.post("/login", async (req, res) => {
   const valid = await bcrypt.compare(password, users[username].passwordHash);
   if (!valid) return res.status(403).json({ error: "Invalid password" });
 
+  // Generate simple token
   const token = username + "_token_" + Date.now();
   users[username].token = token;
 
-  res.json({
-    user: {
-      username,
-      onCount: users[username].onCount,
-      offCount: users[username].offCount,
-      driveChecked: users[username].driveChecked,
-      token
-    }
-  });
+  res.json({ user: { username, onCount: users[username].onCount, offCount: users[username].offCount, driveChecked: users[username].driveChecked, token } });
 });
 
 // Logout
