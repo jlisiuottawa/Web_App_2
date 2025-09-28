@@ -82,8 +82,11 @@ app.post("/add-friend", authMiddleware, (req, res) => {
 app.get("/leaderboard", authMiddleware, (req, res) => {
   const friendsData = req.user.friends.map(f => {
     const u = users[f];
-    return { username: f, onCount: u.onCount || 0 };
+    const currentlyOn = Math.max(u.onCount - u.offCount, 0);
+    return { username: f, currentlyOn };
   });
+  // sort descending by currentlyOn
+  friendsData.sort((a, b) => b.currentlyOn - a.currentlyOn);
   res.json({ friends: friendsData });
 });
 
