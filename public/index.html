@@ -45,7 +45,7 @@
         <button onclick="loginBackend()" class="w-full px-4 py-2 bg-indigo-500 text-white rounded-xl shadow hover:bg-indigo-600">Login / Register</button>
       </div>
 
-      <!-- Social Area (hidden until login) -->
+      <!-- Social Area -->
       <div id="social-area" class="hidden flex flex-col space-y-4">
 
         <!-- Top row: username + refresh timer -->
@@ -70,19 +70,16 @@
         <!-- Leaderboard -->
         <div>
           <h3 class="text-lg font-semibold mb-2">Leaderboard</h3>
-          <div id="leaderboard" class="space-y-1">
-            <!-- Friends list populated here by JS -->
-          </div>
+          <div id="leaderboard" class="space-y-1"></div>
         </div>
 
-      </div> <!-- end of social-area -->
-
+      </div>
     </div>
   </div>
 
   <!-- Backend Integration Script -->
   <script>
-    const API_BASE = "https://web-app-2-uppg.onrender.com/"; // <-- replace with your Render URL
+    const API_BASE = "https://web-app-2-uppg.onrender.com"; // <-- Your Render backend
 
     // ---------- Auth helpers ----------
     function saveAuth(token, username) {
@@ -104,6 +101,7 @@
     async function loginBackend() {
       const username = document.getElementById("username").value.trim();
       const password = document.getElementById("password").value;
+
       if (!username || !password) return alert("Enter a username and password");
 
       try {
@@ -125,8 +123,8 @@
           alert("Login failed: " + (res.error || "Unknown error"));
         }
       } catch (err) {
-        console.error(err);
         alert("Error connecting to server");
+        console.error(err);
       }
     }
 
@@ -171,7 +169,6 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ friend })
       });
-
       if (res.success) {
         document.getElementById("friend-name").value = "";
         updateLeaderboard();
@@ -195,6 +192,7 @@
 
     // ---------- Auto-refresh leaderboard ----------
     let refreshCountdown = 600; // seconds
+
     function startCountdown() {
       setInterval(() => {
         if (refreshCountdown > 0) refreshCountdown--;
@@ -204,13 +202,12 @@
       }, 1000);
     }
 
-    // Initial setup
     updateLeaderboard();
     startCountdown();
     setInterval(() => {
       updateLeaderboard();
       refreshCountdown = 600;
-    }, 600000);
+    }, 600000); // 10 min
   </script>
 </body>
 </html>
