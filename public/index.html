@@ -168,3 +168,12 @@
   </script>
 </body>
 </html>
+
+// Refresh leaderboard every 10 minutes (600000 ms)
+let refreshCountdown = 600; // in seconds
+updateLeaderboard(); // initial load
+
+setInterval(() => {
+  updateLeaderboard();
+  refreshCountdown = 600; // reset countdown
+}, 600000); // 10 minutes
