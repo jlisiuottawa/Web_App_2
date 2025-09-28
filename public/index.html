@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Energy Tracker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="h-screen w-screen bg-cover bg-center" style="background-image: url('https://uploads.onecompiler.io/43x4hzcxy/43y3x3qbx/image_1759087042042.png');">
+  <div class="flex flex-col items-center justify-start min-h-screen p-6 space-y-6 bg-black/50">
+    
+    <!-- Energy Tracker Box -->
+    <div class="bg-white/90 shadow-xl rounded-2xl p-6 w-full max-w-md">
+      <h2 class="text-xl font-bold mb-4 text-center">Energy Tracker</h2>
+      <ul class="space-y-4">
+        <li class="flex justify-between items-center">
+          <span>Lights turned ON</span>
+          <div class="flex items-center space-x-2">
+            <span id="on-count" class="font-bold">0</span>
+            <button onclick="incrementBackend('on')" class="px-3 py-1 bg-green-500 text-white rounded-xl shadow hover:bg-green-600">+</button>
+          </div>
+        </li>
+        <li class="flex justify-between items-center">
+          <span>Lights turned OFF</span>
+          <div class="flex items-center space-x-2">
+            <span id="off-count" class="font-bold">0</span>
+            <button onclick="incrementBackend('off')" class="px-3 py-1 bg-blue-500 text-white rounded-xl shadow hover:bg-blue-600">+</button>
+          </div>
+        </li>
+        <li class="flex justify-between items-center cursor-pointer" onclick="toggleDriveBackend()">
+          <span>Driving minimized</span>
+          <span id="drive-check" class="font-bold">⬜</span>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Social Box -->
+    <div class="bg-white/90 shadow-xl rounded-2xl p-6 w-full max-w-md">
+      <h2 class="text-xl font-bold mb-4 text-center">Social</h2>
+
+      <!-- Login Area -->
+      <div id="login-area" class="flex flex-col items-center space-y-2">
+        <input id="username" placeholder="Enter username" class="p-2 border rounded w-full" />
+        <button onclick="loginBackend()" class="w-full px-4 py-2 bg-indigo-500 text-white rounded-xl shadow hover:bg-indigo-600">Login</button>
+      </div>
+
+      <!-- Social Area (hidden until login) -->
+      <div id="social-area" class="hidden flex flex-col space-y-4">
+        <p class="text-center">Logged in as <span id="current-user" class="font-bold"></span></p>
+        
+        <div class="flex space-x-2">
+          <input id="friend-name" placeholder="Friend username" class="p-2 border rounded flex-1" />
+          <button onclick="addFriendBackend()" class="px-4 py-2 bg-pink-500 text-white rounded-xl shadow hover:bg-pink-600">Add</button>
+        </div>
+
+        <div>
+          <h3 class="text-lg font-semibold mb-2">Leaderboard</h3>
+          <div id="leaderboard" class="space-y-1">
+            <!-- Friends list populated here -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Backend Integration Script -->
+  <script>
+    const API_BASE = "";
+
+    function saveAuth(token, username) {
+      localStorage.setItem("energy_token", token);
+      localStorage.setItem("energy_user", username);
+    }
+    function getToken() {
+      return localStorage.getItem("energy_token");
+    }
+
+    async function apiFetch(path, opts = {}) {
+      opts.headers = opts.headers || {};
+      const token = getToken();
+      if (token) opts.headers["Authorization"] = "Bearer " + token;
+      opts.headers["Content-Type"] = "application/json";
+      const r = await fetch(API_BASE + path, opts);
+      return r.json();
+    }
+
+    async function loginBackend() {
+      const username = document.getElementById("username").value.trim();
+      if (!username) return alert("Enter username");
+      const res = await fetch(API_BASE + "/login", {
+        method: "POST",
+        headers: { "Content-Type":"application/json" },
+        body: JSON.stringify({ username })
+      });
+      const data = await res.json();
+      if (data.user && data.user.token) {
+        saveAuth(data.user.token, data.user.username);
+        document.getElementById("current-user").textContent = data.user.username;
+        document.getElementById("login-area").style.display = "none";
+        document.getElementById("social-area").style.display = "flex";
+        document.getElementById("on-count").textContent = data.user.onCount || 0;
+        document.getElementById("off-count").textContent = data.user.offCount || 0;
+        document.getElementById("drive-check").textContent = (data.user.driveChecked ? "✅" : "⬜");
+        updateLeaderboard();
+      } else {
+        alert("Login failed");
+      }
+    }
+
+    async function addFriendBackend() {
+      const friend = document.getElementById("friend-name").value.trim();
+      if (!friend) return;
+      const r = await apiFetch("/friend", { method: "POST", body: JSON.stringify({ friendUsername: friend }) });
+      if (r.ok) {
+        document.getElementById("friend-name").value = "";
+        updateLeaderboard();
+      } else {
+        alert("Could not add friend");
+      }
+    }
+
+    async function incrementBackend(type) {
+      const r = await apiFetch("/increment", { method: "POST", body: JSON.stringify({ type }) });
+      if (r.updated) {
+        document.getElementById("on-count").textContent = r.updated.onCount;
+        document.getElementById("off-count").textContent = r.updated.offCount;
+        updateLeaderboard();
+      }
+    }
+
+    async function toggleDriveBackend() {
+      const r = await apiFetch("/toggleDrive", { method: "POST", body: "{}" });
+      if (r.driveChecked !== undefined) {
+        document.getElementById("drive-check").textContent = r.driveChecked ? "✅" : "⬜";
+      }
+    }
+
+    async function updateLeaderboard() {
+      const r = await apiFetch("/leaderboard");
+      const board = document.getElementById("leaderboard");
+      board.innerHTML = "";
+      if (!r.leaderboard) return;
+      r.leaderboard.forEach(u => {
+        const div = document.createElement("div");
+        div.className = "flex justify-between bg-gray-100 p-2 rounded";
+        div.innerHTML = `<span>${u.username}</span><span>${u.onCount}</span>`;
+        board.appendChild(div);
+      });
+    }
+
+    // Auto login if token exists
+    (async function init() {
+      const token = getToken();
+      if (!token) return;
+      const me = await apiFetch("/me");
+      if (me.user) {
+        document.getElementById("current-user").textContent = me.user.username;
+        document.getElementById("login-area").style.display = "none";
+        document.getElementById("social-area").style.display = "flex";
+        document.getElementById("on-count").textContent = me.user.onCount || 0;
+        document.getElementById("off-count").textContent = me.user.offCount || 0;
+        document.getElementById("drive-check").textContent = me.user.driveChecked ? "✅" : "⬜";
+        updateLeaderboard();
+      } else {
+        localStorage.removeItem("energy_token");
+        localStorage.removeItem("energy_user");
+      }
+    })();
+  </script>
+</body>
+</html>
