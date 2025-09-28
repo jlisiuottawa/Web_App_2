@@ -82,168 +82,131 @@
 
   <!-- Backend Integration Script -->
   <script>
-    const API_BASE = ""; // your backend base URL
+const API_BASE = "https://your-backend-url.com"; // <-- replace with your Render backend URL
 
-    // Auto-refresh leaderboard every 10 minutes
-    let refreshCountdown = 600; // seconds
+// ---------- Auth helpers ----------
+function saveAuth(token, username) {
+  localStorage.setItem("energy_token", token);
+  localStorage.setItem("energy_user", username);
+  document.getElementById("current-user").textContent = username;
+}
 
-    function startCountdown() {
-      setInterval(() => {
-        if (refreshCountdown > 0) refreshCountdown--;
-        const minutes = String(Math.floor(refreshCountdown / 60)).padStart(2, "0");
-        const seconds = String(refreshCountdown % 60).padStart(2, "0");
-        document.getElementById("refresh-timer").textContent = `${minutes}:${seconds}`;
-      }, 1000);
-    }
+async function apiFetch(path, options = {}) {
+  const token = localStorage.getItem("energy_token");
+  const headers = options.headers || {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  options.headers = headers;
+  const res = await fetch(API_BASE + path, options);
+  return res.json();
+}
 
-    function updateLeaderboard() {
-      // fetch leaderboard data from backend
-      // Example placeholder: populate with dummy data
-      const leaderboardDiv = document.getElementById("leaderboard");
-      leaderboardDiv.innerHTML = "";
-      const friends = JSON.parse(localStorage.getItem("friends") || "[]");
-      friends.forEach(friend => {
-        const div = document.createElement("div");
-        div.textContent = `${friend.username}: ${friend.onCount} lights ON`;
-        leaderboardDiv.appendChild(div);
-      });
-    }
+// ---------- Login / Logout ----------
+async function loginBackend() {
+  const username = document.getElementById("username").value.trim();
+  const password = document.getElementById("password").value;
 
-    // Refresh leaderboard every 10 minutes
+  if (!username || !password) return alert("Enter a username and password");
+
+  const res = await apiFetch("/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password })
+  });
+
+  if (res.user && res.user.token) {
+    saveAuth(res.user.token, res.user.username);
+    document.getElementById("login-area").style.display = "none";
+    document.getElementById("social-area").style.display = "flex";
+    document.getElementById("on-count").textContent = res.user.onCount;
+    document.getElementById("off-count").textContent = res.user.offCount;
+    document.getElementById("drive-check").textContent = res.user.driveChecked ? "✅" : "⬜";
     updateLeaderboard();
-    startCountdown();
-    setInterval(() => {
-      updateLeaderboard();
-      refreshCountdown = 600; // reset countdown
-    }, 600000); // 10 minutes
+  } else {
+    alert("Login failed: " + (res.error || "Unknown error"));
+  }
+}
 
-    // Placeholder functions for login/logout, increment, toggle
-  <!-- Backend Integration Script -->
-  <script>
-    const API_BASE = "https://your-backend-url.com"; // <-- replace with your Render backend URL
-    
-    // ---------- Auth helpers ----------
-    function saveAuth(token, username) {
-      localStorage.setItem("energy_token", token);
-      localStorage.setItem("energy_user", username);
-      document.getElementById("current-user").textContent = username;
-    }
-    
-    async function apiFetch(path, options = {}) {
-      const token = localStorage.getItem("energy_token");
-      const headers = options.headers || {};
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-      options.headers = headers;
-      const res = await fetch(API_BASE + path, options);
-      return res.json();
-    }
-    
-    // ---------- Login / Logout ----------
-    async function loginBackend() {
-      const username = document.getElementById("username").value.trim();
-      const password = document.getElementById("password").value;
-    
-      if (!username || !password) return alert("Enter a username and password");
-    
-      const res = await apiFetch("/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password })
-      });
-    
-      if (res.user && res.user.token) {
-        saveAuth(res.user.token, res.user.username);
-        document.getElementById("login-area").style.display = "none";
-        document.getElementById("social-area").style.display = "flex";
-        document.getElementById("on-count").textContent = res.user.onCount;
-        document.getElementById("off-count").textContent = res.user.offCount;
-        document.getElementById("drive-check").textContent = res.user.driveChecked ? "✅" : "⬜";
-        updateLeaderboard();
-      } else {
-        alert("Login failed: " + (res.error || "Unknown error"));
-      }
-    }
-    
-    async function logoutBackend() {
-      await apiFetch("/logout", { method: "POST" });
-      localStorage.removeItem("energy_token");
-      localStorage.removeItem("energy_user");
-      document.getElementById("login-area").style.display = "flex";
-      document.getElementById("social-area").style.display = "none";
-      document.getElementById("username").value = "";
-      document.getElementById("password").value = "";
-    }
-    
-    // ---------- Lights and Driving ----------
-    async function incrementBackend(type) {
-      const res = await apiFetch("/increment", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type })
-      });
-      if (res.success) {
-        if (type === "on") document.getElementById("on-count").textContent = res.onCount;
-        if (type === "off") document.getElementById("off-count").textContent = res.offCount;
-        updateLeaderboard();
-      }
-    }
-    
-    async function toggleDriveBackend() {
-      const res = await apiFetch("/toggle-drive", { method: "POST" });
-      if (res.success) {
-        document.getElementById("drive-check").textContent = res.driveChecked ? "✅" : "⬜";
-      }
-    }
-    
-    // ---------- Friends & Leaderboard ----------
-    async function addFriendBackend() {
-      const friend = document.getElementById("friend-name").value.trim();
-      if (!friend) return alert("Enter a friend username");
-    
-      const res = await apiFetch("/add-friend", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ friend })
-      });
-      if (res.success) {
-        document.getElementById("friend-name").value = "";
-        updateLeaderboard();
-      } else {
-        alert(res.error || "Failed to add friend");
-      }
-    }
-    
-    async function updateLeaderboard() {
-      const res = await apiFetch("/leaderboard");
-      const leaderboardDiv = document.getElementById("leaderboard");
-      leaderboardDiv.innerHTML = "";
-      if (res.friends) {
-        res.friends.forEach(f => {
-          const div = document.createElement("div");
-          div.textContent = `${f.username}: ${f.onCount} lights ON`;
-          leaderboardDiv.appendChild(div);
-        });
-      }
-    }
-    
-    // ---------- Auto-refresh leaderboard ----------
-    let refreshCountdown = 600; // seconds
-    
-    function startCountdown() {
-      setInterval(() => {
-        if (refreshCountdown > 0) refreshCountdown--;
-        const minutes = String(Math.floor(refreshCountdown / 60)).padStart(2, "0");
-        const seconds = String(refreshCountdown % 60).padStart(2, "0");
-        document.getElementById("refresh-timer").textContent = `${minutes}:${seconds}`;
-      }, 1000);
-    }
+async function logoutBackend() {
+  await apiFetch("/logout", { method: "POST" });
+  localStorage.removeItem("energy_token");
+  localStorage.removeItem("energy_user");
+  document.getElementById("login-area").style.display = "flex";
+  document.getElementById("social-area").style.display = "none";
+  document.getElementById("username").value = "";
+  document.getElementById("password").value = "";
+}
 
+// ---------- Lights and Driving ----------
+async function incrementBackend(type) {
+  const res = await apiFetch("/increment", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ type })
+  });
+  if (res.success) {
+    if (type === "on") document.getElementById("on-count").textContent = res.onCount;
+    if (type === "off") document.getElementById("off-count").textContent = res.offCount;
     updateLeaderboard();
-    startCountdown();
-    setInterval(() => {
-      updateLeaderboard();
-      refreshCountdown = 600; // reset countdown
-    }, 600000); // 10 minutes
+  }
+}
+
+async function toggleDriveBackend() {
+  const res = await apiFetch("/toggle-drive", { method: "POST" });
+  if (res.success) {
+    document.getElementById("drive-check").textContent = res.driveChecked ? "✅" : "⬜";
+  }
+}
+
+// ---------- Friends & Leaderboard ----------
+async function addFriendBackend() {
+  const friend = document.getElementById("friend-name").value.trim();
+  if (!friend) return alert("Enter a friend username");
+
+  const res = await apiFetch("/add-friend", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ friend })
+  });
+  if (res.success) {
+    document.getElementById("friend-name").value = "";
+    updateLeaderboard();
+  } else {
+    alert(res.error || "Failed to add friend");
+  }
+}
+
+async function updateLeaderboard() {
+  const res = await apiFetch("/leaderboard");
+  const leaderboardDiv = document.getElementById("leaderboard");
+  leaderboardDiv.innerHTML = "";
+  if (res.friends) {
+    res.friends.forEach(f => {
+      const div = document.createElement("div");
+      div.textContent = `${f.username}: ${f.onCount} lights ON`;
+      leaderboardDiv.appendChild(div);
+    });
+  }
+}
+
+// ---------- Auto-refresh leaderboard ----------
+let refreshCountdown = 600; // seconds
+
+function startCountdown() {
+  setInterval(() => {
+    if (refreshCountdown > 0) refreshCountdown--;
+    const minutes = String(Math.floor(refreshCountdown / 60)).padStart(2, "0");
+    const seconds = String(refreshCountdown % 60).padStart(2, "0");
+    document.getElementById("refresh-timer").textContent = `${minutes}:${seconds}`;
+  }, 1000);
+}
+
+updateLeaderboard();
+startCountdown();
+setInterval(() => {
+  updateLeaderboard();
+  refreshCountdown = 600; // reset countdown
+}, 600000); // 10 minutes
   </script>
 </body>
 </html>
+
