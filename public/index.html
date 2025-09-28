@@ -10,7 +10,7 @@
   <div class="flex flex-col items-center justify-start min-h-screen p-6 space-y-6 bg-black/50">
 
     <!-- Energy Tracker Box -->
-    <div class="bg-white/90 shadow-xl rounded-2xl p-6 w-full max-w-md">
+    <div id="energy-box" class="bg-white/90 shadow-xl rounded-2xl p-6 w-full max-w-md hidden">
       <h2 class="text-xl font-bold mb-4 text-center">Energy Tracker</h2>
       <ul class="space-y-4">
         <li class="flex justify-between items-center">
@@ -31,12 +31,16 @@
           <span>Driving minimized</span>
           <span id="drive-check" class="font-bold">⬜</span>
         </li>
+        <li class="flex justify-between items-center">
+          <span>Lights currently ON</span>
+          <span id="currently-on" class="font-bold">0</span>
+        </li>
       </ul>
     </div>
 
-    <!-- Social Box -->
-    <div class="bg-white/90 shadow-xl rounded-2xl p-6 w-full max-w-md">
-      <h2 class="text-xl font-bold mb-4 text-center">Social</h2>
+    <!-- Social / Login Box -->
+    <div id="social-box" class="bg-white/90 shadow-xl rounded-2xl p-6 w-full max-w-md">
+      <h2 id="social-title" class="text-xl font-bold mb-4 text-center">Login</h2>
 
       <!-- Login Area -->
       <div id="login-area" class="flex flex-col items-center space-y-2">
@@ -45,21 +49,17 @@
         <button onclick="loginBackend()" class="w-full px-4 py-2 bg-indigo-500 text-white rounded-xl shadow hover:bg-indigo-600">Login / Register</button>
       </div>
 
-      <!-- Social Area -->
+      <!-- Social Area (hidden until login) -->
       <div id="social-area" class="hidden flex flex-col space-y-4">
-
-        <!-- Top row: username + refresh timer -->
         <div class="flex justify-between items-center mb-2">
           <p>Logged in as <span id="current-user" class="font-bold"></span></p>
           <span id="refresh-timer" class="text-sm text-gray-600">10:00</span>
         </div>
 
-        <!-- Logout button -->
         <button onclick="logoutBackend()" class="px-3 py-1 bg-gray-400 text-white rounded-xl shadow hover:bg-gray-500 w-fit">
           Logout
         </button>
 
-        <!-- Add Friend -->
         <div class="flex space-x-2">
           <input id="friend-name" placeholder="Friend username" class="p-2 border rounded flex-1" />
           <button onclick="addFriendBackend()" class="px-4 py-2 bg-pink-500 text-white rounded-xl shadow hover:bg-pink-600">
@@ -67,29 +67,26 @@
           </button>
         </div>
 
-        <!-- Leaderboard -->
         <div>
           <h3 class="text-lg font-semibold mb-2">Leaderboard</h3>
           <div id="leaderboard" class="space-y-1"></div>
         </div>
-
       </div>
     </div>
   </div>
 
-  <!-- Backend Integration Script -->
   <script>
-    const API_BASE = "https://web-app-2-1.onrender.com";  // <-- Your Render backend
+    const API_BASE = "https://web-app-2-1.onrender.com";
 
-    // ----------------- Persistent login -----------------
+    // ---------------- Persistent Login -----------------
     window.addEventListener("DOMContentLoaded", async () => {
       const token = localStorage.getItem("energy_token");
       const username = localStorage.getItem("energy_user");
-
       if (token && username) {
-        // Set UI to logged-in state
         document.getElementById("login-area").style.display = "none";
         document.getElementById("social-area").style.display = "flex";
+        document.getElementById("social-title").textContent = "Social";
+        document.getElementById("energy-box").style.display = "block";
         document.getElementById("current-user").textContent = username;
 
         try {
@@ -97,28 +94,17 @@
           document.getElementById("on-count").textContent = res.onCount;
           document.getElementById("off-count").textContent = res.offCount;
           document.getElementById("drive-check").textContent = res.driveChecked ? "✅" : "⬜";
-
-          // Load leaderboard
+          updateCurrentlyOn();
           updateLeaderboard();
-        } catch (err) {
-          console.error("Could not fetch user info:", err);
-          // Token might be invalid
+        } catch {
           localStorage.removeItem("energy_token");
           localStorage.removeItem("energy_user");
-          document.getElementById("login-area").style.display = "flex";
-          document.getElementById("social-area").style.display = "none";
         }
       }
     });
 
-    // ---------- Auth helpers ----------
-    function saveAuth(token, username) {
-      localStorage.setItem("energy_token", token);
-      localStorage.setItem("energy_user", username);
-      document.getElementById("current-user").textContent = username;
-    }
-
-    async function apiFetch(path, options = {}) {
+    // ---------------- API helper -----------------
+    async function apiFetch(path, options={}) {
       const token = localStorage.getItem("energy_token");
       const headers = options.headers || {};
       if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -127,34 +113,34 @@
       return res.json();
     }
 
-    // ---------- Login / Logout ----------
+    // ---------------- Login / Logout -----------------
     async function loginBackend() {
       const username = document.getElementById("username").value.trim();
       const password = document.getElementById("password").value;
 
       if (!username || !password) return alert("Enter a username and password");
 
-      try {
-        const res = await apiFetch("/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username, password })
-        });
+      const res = await apiFetch("/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password })
+      });
 
-        if (res.user && res.user.token) {
-          saveAuth(res.user.token, res.user.username);
-          document.getElementById("login-area").style.display = "none";
-          document.getElementById("social-area").style.display = "flex";
-          document.getElementById("on-count").textContent = res.user.onCount;
-          document.getElementById("off-count").textContent = res.user.offCount;
-          document.getElementById("drive-check").textContent = res.user.driveChecked ? "✅" : "⬜";
-          updateLeaderboard();
-        } else {
-          alert("Login failed: " + (res.error || "Unknown error"));
-        }
-      } catch (err) {
-        alert("Error connecting to server");
-        console.error(err);
+      if (res.user && res.user.token) {
+        localStorage.setItem("energy_token", res.user.token);
+        localStorage.setItem("energy_user", res.user.username);
+        document.getElementById("login-area").style.display = "none";
+        document.getElementById("social-area").style.display = "flex";
+        document.getElementById("social-title").textContent = "Social";
+        document.getElementById("energy-box").style.display = "block";
+        document.getElementById("current-user").textContent = res.user.username;
+        document.getElementById("on-count").textContent = res.user.onCount;
+        document.getElementById("off-count").textContent = res.user.offCount;
+        document.getElementById("drive-check").textContent = res.user.driveChecked ? "✅" : "⬜";
+        updateCurrentlyOn();
+        updateLeaderboard();
+      } else {
+        alert("Login failed: " + (res.error || "Unknown error"));
       }
     }
 
@@ -164,11 +150,13 @@
       localStorage.removeItem("energy_user");
       document.getElementById("login-area").style.display = "flex";
       document.getElementById("social-area").style.display = "none";
+      document.getElementById("social-title").textContent = "Login";
+      document.getElementById("energy-box").style.display = "none";
       document.getElementById("username").value = "";
       document.getElementById("password").value = "";
     }
 
-    // ---------- Lights and Driving ----------
+    // ---------------- Lights & Driving -----------------
     async function incrementBackend(type) {
       const res = await apiFetch("/increment", {
         method: "POST",
@@ -178,6 +166,7 @@
       if (res.success) {
         if (type === "on") document.getElementById("on-count").textContent = res.onCount;
         if (type === "off") document.getElementById("off-count").textContent = res.offCount;
+        updateCurrentlyOn();
         updateLeaderboard();
       }
     }
@@ -189,7 +178,7 @@
       }
     }
 
-    // ---------- Friends & Leaderboard ----------
+    // ---------------- Friends & Leaderboard -----------------
     async function addFriendBackend() {
       const friend = document.getElementById("friend-name").value.trim();
       if (!friend) return alert("Enter a friend username");
@@ -212,17 +201,23 @@
       const leaderboardDiv = document.getElementById("leaderboard");
       leaderboardDiv.innerHTML = "";
       if (res.friends) {
-        res.friends.forEach(f => {
+        res.friends.forEach((f, index) => {
           const div = document.createElement("div");
-          div.textContent = `${f.username}: ${f.onCount} lights ON`;
+          div.textContent = `${index + 1}. ${f.username}: ${f.currentlyOn}`;
+          if (index === 0) div.textContent += " 🏆";
           leaderboardDiv.appendChild(div);
         });
       }
     }
 
-    // ---------- Auto-refresh leaderboard ----------
-    let refreshCountdown = 600; // seconds
+    function updateCurrentlyOn() {
+      const onCount = parseInt(document.getElementById("on-count").textContent);
+      const offCount = parseInt(document.getElementById("off-count").textContent);
+      document.getElementById("currently-on").textContent = Math.max(onCount - offCount, 0);
+    }
 
+    // ---------------- Auto-refresh leaderboard -----------------
+    let refreshCountdown = 600; // seconds
     function startCountdown() {
       setInterval(() => {
         if (refreshCountdown > 0) refreshCountdown--;
@@ -232,12 +227,12 @@
       }, 1000);
     }
 
-    updateLeaderboard();
     startCountdown();
     setInterval(() => {
       updateLeaderboard();
       refreshCountdown = 600;
-    }, 600000); // 10 min
+    }, 600000);
+
   </script>
 </body>
 </html>
