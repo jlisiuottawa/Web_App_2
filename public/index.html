@@ -27,19 +27,19 @@
             <button onclick="incrementBackend('off')" class="px-3 py-1 bg-blue-500 text-white rounded-xl shadow hover:bg-blue-600">+</button>
           </div>
         </li>
-        <li class="flex justify-between items-center cursor-pointer" onclick="toggleDriveBackend()">
-          <span>Driving minimized</span>
-          <span id="drive-check" class="font-bold">⬜</span>
-        </li>
         <li class="flex justify-between items-center">
           <span>Lights currently ON</span>
           <span id="currently-on" class="font-bold">0</span>
+        </li>
+        <li class="flex justify-between items-center cursor-pointer" onclick="toggleDriveBackend()">
+          <span>Driving minimized</span>
+          <span id="drive-check" class="font-bold">⬜</span>
         </li>
       </ul>
     </div>
 
     <!-- Social / Login Box -->
-    <div id="social-box" class="bg-white/90 shadow-xl rounded-2xl p-6 w-full max-w-md">
+    <div class="bg-white/90 shadow-xl rounded-2xl p-6 w-full max-w-md">
       <h2 id="social-title" class="text-xl font-bold mb-4 text-center">Login</h2>
 
       <!-- Login Area -->
@@ -51,188 +51,181 @@
 
       <!-- Social Area (hidden until login) -->
       <div id="social-area" class="hidden flex flex-col space-y-4">
+
+        <!-- Top row: username + refresh timer -->
         <div class="flex justify-between items-center mb-2">
           <p>Logged in as <span id="current-user" class="font-bold"></span></p>
-          <span id="refresh-timer" class="text-sm text-gray-600">10:00</span>
+          <span id="refresh-timer" class="text-sm text-gray-600">Time until next refresh: 10:00</span>
         </div>
 
+        <!-- Logout button -->
         <button onclick="logoutBackend()" class="px-3 py-1 bg-gray-400 text-white rounded-xl shadow hover:bg-gray-500 w-fit">
           Logout
         </button>
 
-        <div class="flex space-x-2">
+        <!-- Add Friend -->
+        <div class="flex space-x-2 items-center">
           <input id="friend-name" placeholder="Friend username" class="p-2 border rounded flex-1" />
           <button onclick="addFriendBackend()" class="px-4 py-2 bg-pink-500 text-white rounded-xl shadow hover:bg-pink-600">
             Add
           </button>
+          <span id="friend-notification" class="text-green-600 font-semibold hidden">Friend added!</span>
         </div>
 
+        <!-- Leaderboard -->
         <div>
           <h3 class="text-lg font-semibold mb-2">Leaderboard</h3>
-          <div id="leaderboard" class="space-y-1"></div>
+          <div id="leaderboard" class="space-y-1">
+            <!-- Friends list populated here by JS -->
+          </div>
         </div>
-      </div>
+
+      </div> <!-- end of social-area -->
     </div>
   </div>
 
-  <script>
-    const API_BASE = "https://web-app-2-1.onrender.com";
+<script>
+const API_BASE = "https://web-app-2-1.onrender.com"; // Your backend URL
 
-    // ---------------- Persistent Login -----------------
-    window.addEventListener("DOMContentLoaded", async () => {
-      const token = localStorage.getItem("energy_token");
-      const username = localStorage.getItem("energy_user");
-      if (token && username) {
-        document.getElementById("login-area").style.display = "none";
-        document.getElementById("social-area").style.display = "flex";
-        document.getElementById("social-title").textContent = "Social";
-        document.getElementById("energy-box").style.display = "block";
-        document.getElementById("current-user").textContent = username;
+// ---------------- Auth helpers ----------------
+function saveAuth(token, username) {
+  localStorage.setItem("energy_token", token);
+  localStorage.setItem("energy_user", username);
+  document.getElementById("current-user").textContent = username;
+}
 
-        try {
-          const res = await apiFetch("/user-info");
-          document.getElementById("on-count").textContent = res.onCount;
-          document.getElementById("off-count").textContent = res.offCount;
-          document.getElementById("drive-check").textContent = res.driveChecked ? "✅" : "⬜";
-          updateCurrentlyOn();
-          updateLeaderboard();
-        } catch {
-          localStorage.removeItem("energy_token");
-          localStorage.removeItem("energy_user");
-        }
-      }
+async function apiFetch(path, options = {}) {
+  const token = localStorage.getItem("energy_token");
+  const headers = options.headers || {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  options.headers = headers;
+  const res = await fetch(API_BASE + path, options);
+  return res.json();
+}
+
+// ---------------- Login / Logout ----------------
+async function loginBackend() {
+  const username = document.getElementById("username").value.trim();
+  const password = document.getElementById("password").value;
+  if (!username || !password) return alert("Enter a username and password");
+
+  const res = await apiFetch("/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password })
+  });
+
+  if (res.user && res.user.token) {
+    saveAuth(res.user.token, res.user.username);
+    document.getElementById("login-area").style.display = "none";
+    document.getElementById("social-area").style.display = "flex";
+    document.getElementById("energy-box").style.display = "block";
+    document.getElementById("on-count").textContent = res.user.onCount;
+    document.getElementById("off-count").textContent = res.user.offCount;
+    document.getElementById("drive-check").textContent = res.user.driveChecked ? "✅" : "⬜";
+    updateCurrentlyOn();
+    updateLeaderboard();
+  } else {
+    alert("Login failed: " + (res.error || "Unknown error"));
+  }
+}
+
+async function logoutBackend() {
+  await apiFetch("/logout", { method: "POST" });
+  localStorage.removeItem("energy_token");
+  localStorage.removeItem("energy_user");
+  document.getElementById("login-area").style.display = "flex";
+  document.getElementById("social-area").style.display = "none";
+  document.getElementById("energy-box").style.display = "none";
+  document.getElementById("username").value = "";
+  document.getElementById("password").value = "";
+  document.getElementById("social-title").textContent = "Login";
+}
+
+// ---------------- Lights and Driving ----------------
+async function incrementBackend(type) {
+  const res = await apiFetch("/increment", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ type })
+  });
+  if (res.success) {
+    if (type === "on") document.getElementById("on-count").textContent = res.onCount;
+    if (type === "off") document.getElementById("off-count").textContent = res.offCount;
+    updateCurrentlyOn();
+    updateLeaderboard();
+  }
+}
+
+async function toggleDriveBackend() {
+  const res = await apiFetch("/toggle-drive", { method: "POST" });
+  if (res.success) {
+    document.getElementById("drive-check").textContent = res.driveChecked ? "✅" : "⬜";
+  }
+}
+
+// ---------------- Friends & Leaderboard ----------------
+async function addFriendBackend() {
+  const friend = document.getElementById("friend-name").value.trim();
+  if (!friend) return alert("Enter a friend username");
+
+  const res = await apiFetch("/add-friend", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ friend })
+  });
+
+  const notif = document.getElementById("friend-notification");
+  if (res.success) {
+    document.getElementById("friend-name").value = "";
+    notif.style.display = "inline";
+    setTimeout(() => { notif.style.display = "none"; }, 2000); // hide after 2s
+    updateLeaderboard(); // refresh leaderboard immediately
+  } else {
+    alert(res.error || "Failed to add friend");
+  }
+}
+
+async function updateLeaderboard() {
+  const res = await apiFetch("/leaderboard");
+  const leaderboardDiv = document.getElementById("leaderboard");
+  leaderboardDiv.innerHTML = "";
+  if (res.friends) {
+    // Sort by ascending currentlyOn (lowest = #1)
+    res.friends.sort((a,b) => a.currentlyOn - b.currentlyOn);
+    res.friends.forEach((f, index) => {
+      const div = document.createElement("div");
+      div.textContent = `${index + 1}. ${f.username}: ${f.currentlyOn}`;
+      if (index === 0) div.textContent += " 🏆"; // top spot trophy
+      leaderboardDiv.appendChild(div);
     });
+  }
+}
 
-    // ---------------- API helper -----------------
-    async function apiFetch(path, options={}) {
-      const token = localStorage.getItem("energy_token");
-      const headers = options.headers || {};
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-      options.headers = headers;
-      const res = await fetch(API_BASE + path, options);
-      return res.json();
-    }
+// ---------------- Currently ON ----------------
+function updateCurrentlyOn() {
+  const onCount = parseInt(document.getElementById("on-count").textContent);
+  const offCount = parseInt(document.getElementById("off-count").textContent);
+  document.getElementById("currently-on").textContent = Math.max(onCount - offCount, 0);
+}
 
-    // ---------------- Login / Logout -----------------
-    async function loginBackend() {
-      const username = document.getElementById("username").value.trim();
-      const password = document.getElementById("password").value;
+// ---------------- Auto-refresh leaderboard ----------------
+let refreshCountdown = 600; // seconds
+function startCountdown() {
+  setInterval(() => {
+    if (refreshCountdown > 0) refreshCountdown--;
+    const minutes = String(Math.floor(refreshCountdown / 60)).padStart(2,"0");
+    const seconds = String(refreshCountdown % 60).padStart(2,"0");
+    document.getElementById("refresh-timer").textContent = `Time until next refresh: ${minutes}:${seconds}`;
+  }, 1000);
+}
 
-      if (!username || !password) return alert("Enter a username and password");
+startCountdown();
+setInterval(() => {
+  updateLeaderboard();
+  refreshCountdown = 600;
+}, 600000);
 
-      const res = await apiFetch("/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password })
-      });
-
-      if (res.user && res.user.token) {
-        localStorage.setItem("energy_token", res.user.token);
-        localStorage.setItem("energy_user", res.user.username);
-        document.getElementById("login-area").style.display = "none";
-        document.getElementById("social-area").style.display = "flex";
-        document.getElementById("social-title").textContent = "Social";
-        document.getElementById("energy-box").style.display = "block";
-        document.getElementById("current-user").textContent = res.user.username;
-        document.getElementById("on-count").textContent = res.user.onCount;
-        document.getElementById("off-count").textContent = res.user.offCount;
-        document.getElementById("drive-check").textContent = res.user.driveChecked ? "✅" : "⬜";
-        updateCurrentlyOn();
-        updateLeaderboard();
-      } else {
-        alert("Login failed: " + (res.error || "Unknown error"));
-      }
-    }
-
-    async function logoutBackend() {
-      await apiFetch("/logout", { method: "POST" });
-      localStorage.removeItem("energy_token");
-      localStorage.removeItem("energy_user");
-      document.getElementById("login-area").style.display = "flex";
-      document.getElementById("social-area").style.display = "none";
-      document.getElementById("social-title").textContent = "Login";
-      document.getElementById("energy-box").style.display = "none";
-      document.getElementById("username").value = "";
-      document.getElementById("password").value = "";
-    }
-
-    // ---------------- Lights & Driving -----------------
-    async function incrementBackend(type) {
-      const res = await apiFetch("/increment", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type })
-      });
-      if (res.success) {
-        if (type === "on") document.getElementById("on-count").textContent = res.onCount;
-        if (type === "off") document.getElementById("off-count").textContent = res.offCount;
-        updateCurrentlyOn();
-        updateLeaderboard();
-      }
-    }
-
-    async function toggleDriveBackend() {
-      const res = await apiFetch("/toggle-drive", { method: "POST" });
-      if (res.success) {
-        document.getElementById("drive-check").textContent = res.driveChecked ? "✅" : "⬜";
-      }
-    }
-
-    // ---------------- Friends & Leaderboard -----------------
-    async function addFriendBackend() {
-      const friend = document.getElementById("friend-name").value.trim();
-      if (!friend) return alert("Enter a friend username");
-
-      const res = await apiFetch("/add-friend", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ friend })
-      });
-      if (res.success) {
-        document.getElementById("friend-name").value = "";
-        updateLeaderboard();
-      } else {
-        alert(res.error || "Failed to add friend");
-      }
-    }
-
-    async function updateLeaderboard() {
-      const res = await apiFetch("/leaderboard");
-      const leaderboardDiv = document.getElementById("leaderboard");
-      leaderboardDiv.innerHTML = "";
-      if (res.friends) {
-        res.friends.forEach((f, index) => {
-          const div = document.createElement("div");
-          div.textContent = `${index + 1}. ${f.username}: ${f.currentlyOn}`;
-          if (index === 0) div.textContent += " 🏆";
-          leaderboardDiv.appendChild(div);
-        });
-      }
-    }
-
-    function updateCurrentlyOn() {
-      const onCount = parseInt(document.getElementById("on-count").textContent);
-      const offCount = parseInt(document.getElementById("off-count").textContent);
-      document.getElementById("currently-on").textContent = Math.max(onCount - offCount, 0);
-    }
-
-    // ---------------- Auto-refresh leaderboard -----------------
-    let refreshCountdown = 600; // seconds
-    function startCountdown() {
-      setInterval(() => {
-        if (refreshCountdown > 0) refreshCountdown--;
-        const minutes = String(Math.floor(refreshCountdown / 60)).padStart(2, "0");
-        const seconds = String(refreshCountdown % 60).padStart(2, "0");
-        document.getElementById("refresh-timer").textContent = `${minutes}:${seconds}`;
-      }, 1000);
-    }
-
-    startCountdown();
-    setInterval(() => {
-      updateLeaderboard();
-      refreshCountdown = 600;
-    }, 600000);
-
-  </script>
+</script>
 </body>
 </html>
