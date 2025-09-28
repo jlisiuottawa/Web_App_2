@@ -87,6 +87,13 @@ app.get("/leaderboard", authMiddleware, (req, res) => {
   res.json({ friends: friendsData });
 });
 
+// ---------------- NEW ENDPOINT ----------------
+// Get current user info (for persistent login)
+app.get("/user-info", authMiddleware, (req, res) => {
+  const { username, onCount, offCount, driveChecked } = req.user;
+  res.json({ username, onCount, offCount, driveChecked });
+});
+
 // Start server
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
