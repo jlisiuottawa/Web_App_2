@@ -1,67 +1,92 @@
+// server.js
 const express = require("express");
 const cors = require("cors");
+const bodyParser = require("body-parser");
+const bcrypt = require("bcrypt");
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
-app.use(express.json());
-app.use(express.static("public")); // serve index.html
+app.use(bodyParser.json());
+app.use(express.static("public")); // serve index.html from public/
 
-let users = {}; // in-memory user store
+// In-memory data storage
+let users = {}; // { username: { passwordHash, onCount, offCount, driveChecked, friends: [] } }
 
-function makeUser(username) {
-  return { username, onCount: 0, offCount: 0, driveChecked: false, friends: [] };
-}
-
-// login or create
-app.post("/login", (req, res) => {
-  const { username } = req.body;
-  if (!username) return res.status(400).json({ error: "No username" });
-  if (!users[username]) users[username] = makeUser(username);
-  users[username].token = username + "_token"; // simple mock token
-  res.json({ user: users[username] });
-});
-
-// auth middleware
-function auth(req, res, next) {
-  const authHeader = req.headers.authorization;
-  if (!authHeader) return res.status(401).json({ error: "No token" });
-  const token = authHeader.split(" ")[1];
+// Simple token-based auth for demo
+function authMiddleware(req, res, next) {
+  const auth = req.headers["authorization"];
+  if (!auth) return res.status(401).json({ error: "Missing token" });
+  const token = auth.split(" ")[1];
   const user = Object.values(users).find(u => u.token === token);
   if (!user) return res.status(403).json({ error: "Invalid token" });
   req.user = user;
   next();
 }
 
-app.get("/me", auth, (req, res) => {
-  res.json({ user: req.user });
+// ----------------- Endpoints -----------------
+
+// Login (or register new user)
+app.post("/login", async (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) return res.status(400).json({ error: "Missing username/password" });
+
+  if (!users[username]) {
+    // create new user
+    const hash = await bcrypt.hash(password, 10);
+    users[username] = { username, passwordHash: hash, onCount: 0, offCount: 0, driveChecked: false, friends: [], token: null };
+  }
+
+  const valid = await bcrypt.compare(password, users[username].passwordHash);
+  if (!valid) return res.status(403).json({ error: "Invalid password" });
+
+  // generate simple token
+  const token = username + "_token_" + Date.now();
+  users[username].token = token;
+
+  res.json({ user: { username, onCount: users[username].onCount, offCount: users[username].offCount, driveChecked: users[username].driveChecked, token } });
 });
 
-app.post("/increment", auth, (req, res) => {
+// Logout
+app.post("/logout", authMiddleware, (req, res) => {
+  req.user.token = null;
+  res.json({ success: true });
+});
+
+// Increment lights
+app.post("/increment", authMiddleware, (req, res) => {
   const { type } = req.body;
   if (type === "on") req.user.onCount++;
-  else if (type === "off") req.user.offCount++;
-  res.json({ updated: req.user });
+  if (type === "off") req.user.offCount++;
+  res.json({ success: true, onCount: req.user.onCount, offCount: req.user.offCount });
 });
 
-app.post("/toggleDrive", auth, (req, res) => {
+// Toggle driving minimized
+app.post("/toggle-drive", authMiddleware, (req, res) => {
   req.user.driveChecked = !req.user.driveChecked;
-  res.json({ driveChecked: req.user.driveChecked });
+  res.json({ success: true, driveChecked: req.user.driveChecked });
 });
 
-app.post("/friend", auth, (req, res) => {
-  const { friendUsername } = req.body;
-  if (!users[friendUsername]) users[friendUsername] = makeUser(friendUsername);
-  if (!req.user.friends.includes(friendUsername)) {
-    req.user.friends.push(friendUsername);
-  }
-  res.json({ ok: true });
+// Add friend
+app.post("/add-friend", authMiddleware, (req, res) => {
+  const { friend } = req.body;
+  if (!friend) return res.status(400).json({ error: "Missing friend username" });
+  if (!users[friend]) return res.status(404).json({ error: "Friend not found" });
+  if (!req.user.friends.includes(friend)) req.user.friends.push(friend);
+  res.json({ success: true });
 });
 
-app.get("/leaderboard", auth, (req, res) => {
-  const friends = [req.user.username, ...req.user.friends];
-  const leaderboard = friends.map(f => users[f]);
-  res.json({ leaderboard });
+// Leaderboard
+app.get("/leaderboard", authMiddleware, (req, res) => {
+  const friendsData = req.user.friends.map(f => {
+    const u = users[f];
+    return { username: f, onCount: u.onCount || 0 };
+  });
+  res.json({ friends: friendsData });
 });
 
-app.listen(PORT, () => console.log("Server running on " + PORT));
+// Start server
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
