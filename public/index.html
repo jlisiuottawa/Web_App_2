@@ -81,6 +81,36 @@
   <script>
     const API_BASE = "https://web-app-2-1.onrender.com";  // <-- Your Render backend
 
+    // ----------------- Persistent login -----------------
+    window.addEventListener("DOMContentLoaded", async () => {
+      const token = localStorage.getItem("energy_token");
+      const username = localStorage.getItem("energy_user");
+
+      if (token && username) {
+        // Set UI to logged-in state
+        document.getElementById("login-area").style.display = "none";
+        document.getElementById("social-area").style.display = "flex";
+        document.getElementById("current-user").textContent = username;
+
+        try {
+          const res = await apiFetch("/user-info");
+          document.getElementById("on-count").textContent = res.onCount;
+          document.getElementById("off-count").textContent = res.offCount;
+          document.getElementById("drive-check").textContent = res.driveChecked ? "✅" : "⬜";
+
+          // Load leaderboard
+          updateLeaderboard();
+        } catch (err) {
+          console.error("Could not fetch user info:", err);
+          // Token might be invalid
+          localStorage.removeItem("energy_token");
+          localStorage.removeItem("energy_user");
+          document.getElementById("login-area").style.display = "flex";
+          document.getElementById("social-area").style.display = "none";
+        }
+      }
+    });
+
     // ---------- Auth helpers ----------
     function saveAuth(token, username) {
       localStorage.setItem("energy_token", token);
