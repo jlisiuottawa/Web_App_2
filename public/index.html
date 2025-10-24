@@ -17,14 +17,14 @@
           <span>Lights turned ON</span>
           <div class="flex items-center space-x-2">
             <span id="on-count" class="font-bold">0</span>
-            <button onclick="incrementBackend('on')" class="px-3 py-1 bg-green-500 text-white rounded-xl shadow hover:bg-green-600">+</button>
+            <button type="button" onclick="incrementBackend('on')" class="px-3 py-1 bg-green-500 text-white rounded-xl shadow hover:bg-green-600">+</button>
           </div>
         </li>
         <li class="flex justify-between items-center">
           <span>Lights turned OFF</span>
           <div class="flex items-center space-x-2">
             <span id="off-count" class="font-bold">0</span>
-            <button onclick="incrementBackend('off')" class="px-3 py-1 bg-blue-500 text-white rounded-xl shadow hover:bg-blue-600">+</button>
+            <button type="button" onclick="incrementBackend('off')" class="px-3 py-1 bg-blue-500 text-white rounded-xl shadow hover:bg-blue-600">+</button>
           </div>
         </li>
         <li class="flex justify-between items-center">
@@ -46,27 +46,30 @@
       <div id="login-area" class="flex flex-col items-center space-y-2">
         <input id="username" placeholder="Enter username" class="p-2 border rounded w-full" />
         <input id="password" type="password" placeholder="Enter password" class="p-2 border rounded w-full" />
-        <button onclick="loginBackend()" class="w-full px-4 py-2 bg-indigo-500 text-white rounded-xl shadow hover:bg-indigo-600">Login / Register</button>
+        <button type="button" onclick="loginBackend()" class="w-full px-4 py-2 bg-indigo-500 text-white rounded-xl shadow hover:bg-indigo-600">Login / Register</button>
       </div>
 
       <!-- Social Area (hidden until login) -->
       <div id="social-area" class="hidden flex flex-col space-y-4">
 
-        <!-- Top row: username + refresh timer -->
+        <!-- Top row: username + refresh timer + stats link -->
         <div class="flex justify-between items-center mb-2">
           <p>Logged in as <span id="current-user" class="font-bold"></span></p>
-          <span id="refresh-timer" class="text-sm text-gray-600">Time until next refresh: 10:00</span>
+          <div class="flex items-center space-x-3">
+            <a href="stats.html" class="text-sm text-indigo-600 underline">Statistics</a>
+            <span id="refresh-timer" class="text-sm text-gray-600">Time until next refresh: 10:00</span>
+          </div>
         </div>
 
         <!-- Logout button -->
-        <button onclick="logoutBackend()" class="px-3 py-1 bg-gray-400 text-white rounded-xl shadow hover:bg-gray-500 w-fit">
+        <button type="button" onclick="logoutBackend()" class="px-3 py-1 bg-gray-400 text-white rounded-xl shadow hover:bg-gray-500 w-fit">
           Logout
         </button>
 
         <!-- Add Friend -->
         <div class="flex space-x-2 items-center">
           <input id="friend-name" placeholder="Friend username" class="p-2 border rounded flex-1" />
-          <button onclick="addFriendBackend()" class="px-4 py-2 bg-pink-500 text-white rounded-xl shadow hover:bg-pink-600">
+          <button type="button" onclick="addFriendBackend()" class="px-4 py-2 bg-pink-500 text-white rounded-xl shadow hover:bg-pink-600">
             Add
           </button>
           <span id="friend-notification" class="text-green-600 font-semibold hidden">Friend added!</span>
@@ -85,7 +88,7 @@
   </div>
 
 <script>
-const API_BASE = "https://web-app-2-1.onrender.com"; // Your backend URL
+const API_BASE = ""; // Use relative paths so frontend talks to same origin (works locally & deployed)
 
 // ---------------- Auth helpers ----------------
 function saveAuth(token, username) {
@@ -99,8 +102,47 @@ async function apiFetch(path, options = {}) {
   const headers = options.headers || {};
   if (token) headers['Authorization'] = `Bearer ${token}`;
   options.headers = headers;
-  const res = await fetch(API_BASE + path, options);
-  return res.json();
+  try {
+    const response = await fetch(API_BASE + path, options);
+    // handle non-JSON or network error gracefully
+    const parsed = await response.json().catch(() => ({ error: "Invalid JSON response" }));
+    if (!response.ok) {
+      // show a helpful message
+      const msg = parsed && parsed.error ? parsed.error : `Request failed (${response.status})`;
+      alert(msg);
+      return parsed;
+    }
+    return parsed;
+  } catch (err) {
+    // network or CORS error
+    alert("Network error connecting to the server. Make sure the backend is running and reachable.");
+    console.error("apiFetch error:", err);
+    return { error: "Network error" };
+  }
+}
+
+// ---------------- Session restore ----------------
+async function restoreSession() {
+  const token = localStorage.getItem("energy_token");
+  const username = localStorage.getItem("energy_user");
+  if (!token || !username) return;
+
+  const info = await apiFetch("/user-info");
+  if (info && info.username) {
+    saveAuth(token, info.username);
+    document.getElementById("login-area").style.display = "none";
+    document.getElementById("social-area").style.display = "flex";
+    document.getElementById("energy-box").style.display = "block";
+    document.getElementById("on-count").textContent = info.onCount || 0;
+    document.getElementById("off-count").textContent = info.offCount || 0;
+    document.getElementById("drive-check").textContent = info.driveChecked ? "✅" : "⬜";
+    updateCurrentlyOn();
+    updateLeaderboard();
+  } else {
+    // invalid token stored
+    localStorage.removeItem("energy_token");
+    localStorage.removeItem("energy_user");
+  }
 }
 
 // ---------------- Login / Logout ----------------
@@ -115,7 +157,7 @@ async function loginBackend() {
     body: JSON.stringify({ username, password })
   });
 
-  if (res.user && res.user.token) {
+  if (res && res.user && res.user.token) {
     saveAuth(res.user.token, res.user.username);
     document.getElementById("login-area").style.display = "none";
     document.getElementById("social-area").style.display = "flex";
@@ -126,7 +168,7 @@ async function loginBackend() {
     updateCurrentlyOn();
     updateLeaderboard();
   } else {
-    alert("Login failed: " + (res.error || "Unknown error"));
+    alert("Login failed: " + (res && (res.error || res.message) ? (res.error || res.message) : "Unknown error"));
   }
 }
 
@@ -149,18 +191,22 @@ async function incrementBackend(type) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ type })
   });
-  if (res.success) {
+  if (res && res.success) {
     if (type === "on") document.getElementById("on-count").textContent = res.onCount;
     if (type === "off") document.getElementById("off-count").textContent = res.offCount;
     updateCurrentlyOn();
     updateLeaderboard();
+  } else {
+    alert(res && res.error ? res.error : "Failed to increment");
   }
 }
 
 async function toggleDriveBackend() {
   const res = await apiFetch("/toggle-drive", { method: "POST" });
-  if (res.success) {
+  if (res && res.success) {
     document.getElementById("drive-check").textContent = res.driveChecked ? "✅" : "⬜";
+  } else {
+    alert(res && res.error ? res.error : "Failed to toggle driving");
   }
 }
 
@@ -176,13 +222,13 @@ async function addFriendBackend() {
   });
 
   const notif = document.getElementById("friend-notification");
-  if (res.success) {
+  if (res && res.success) {
     document.getElementById("friend-name").value = "";
     notif.style.display = "inline";
     setTimeout(() => { notif.style.display = "none"; }, 2000); // hide after 2s
     updateLeaderboard(); // refresh leaderboard immediately
   } else {
-    alert(res.error || "Failed to add friend");
+    alert(res && res.error ? res.error : "Failed to add friend");
   }
 }
 
@@ -190,22 +236,24 @@ async function updateLeaderboard() {
   const res = await apiFetch("/leaderboard");
   const leaderboardDiv = document.getElementById("leaderboard");
   leaderboardDiv.innerHTML = "";
-  if (res.friends) {
-    // Sort by ascending currentlyOn (lowest = #1)
-    res.friends.sort((a,b) => a.currentlyOn - b.currentlyOn);
+  if (res && res.friends) {
+    // Sort by descending currentlyOn (highest = #1)
+    res.friends.sort((a,b) => b.currentlyOn - a.currentlyOn);
     res.friends.forEach((f, index) => {
       const div = document.createElement("div");
       div.textContent = `${index + 1}. ${f.username}: ${f.currentlyOn}`;
       if (index === 0) div.textContent += " 🏆"; // top spot trophy
       leaderboardDiv.appendChild(div);
     });
+  } else {
+    leaderboardDiv.textContent = res && res.error ? res.error : "No friends yet";
   }
 }
 
 // ---------------- Currently ON ----------------
 function updateCurrentlyOn() {
-  const onCount = parseInt(document.getElementById("on-count").textContent);
-  const offCount = parseInt(document.getElementById("off-count").textContent);
+  const onCount = parseInt(document.getElementById("on-count").textContent) || 0;
+  const offCount = parseInt(document.getElementById("off-count").textContent) || 0;
   document.getElementById("currently-on").textContent = Math.max(onCount - offCount, 0);
 }
 
@@ -216,15 +264,19 @@ function startCountdown() {
     if (refreshCountdown > 0) refreshCountdown--;
     const minutes = String(Math.floor(refreshCountdown / 60)).padStart(2,"0");
     const seconds = String(refreshCountdown % 60).padStart(2,"0");
-    document.getElementById("refresh-timer").textContent = `Time until next refresh: ${minutes}:${seconds}`;
+    const el = document.getElementById("refresh-timer");
+    if (el) el.textContent = `Time until next refresh: ${minutes}:${seconds}`;
   }, 1000);
 }
 
-startCountdown();
-setInterval(() => {
-  updateLeaderboard();
-  refreshCountdown = 600;
-}, 600000);
+document.addEventListener('DOMContentLoaded', () => {
+  restoreSession();
+  startCountdown();
+  setInterval(() => {
+    updateLeaderboard();
+    refreshCountdown = 600;
+  }, 600000);
+});
 
 </script>
 </body>
