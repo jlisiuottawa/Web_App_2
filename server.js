@@ -19,7 +19,9 @@ let users = {};
 function authMiddleware(req, res, next) {
   const auth = req.headers["authorization"];
   if (!auth) return res.status(401).json({ error: "Missing token" });
-  const token = auth.split(" ")[1];
+  // support "Bearer token" or just "token"
+  const parts = auth.split(" ");
+  const token = parts.length > 1 ? parts[1] : parts[0];
   const user = Object.values(users).find(u => u.token === token);
   if (!user) return res.status(403).json({ error: "Invalid token" });
   req.user = user;
@@ -58,8 +60,8 @@ app.post("/logout", authMiddleware, (req, res) => {
 // Increment lights
 app.post("/increment", authMiddleware, (req, res) => {
   const { type } = req.body;
-  if (type === "on") req.user.onCount++;
-  if (type === "off") req.user.offCount++;
+  if (type === "on") req.user.onCount = (req.user.onCount || 0) + 1;
+  if (type === "off") req.user.offCount = (req.user.offCount || 0) + 1;
   res.json({ success: true, onCount: req.user.onCount, offCount: req.user.offCount });
 });
 
@@ -78,11 +80,11 @@ app.post("/add-friend", authMiddleware, (req, res) => {
   res.json({ success: true });
 });
 
-// Leaderboard
+// Leaderboard (friends only)
 app.get("/leaderboard", authMiddleware, (req, res) => {
   const friendsData = req.user.friends.map(f => {
     const u = users[f];
-    const currentlyOn = Math.max(u.onCount - u.offCount, 0);
+    const currentlyOn = u ? Math.max((u.onCount || 0) - (u.offCount || 0), 0) : 0;
     return { username: f, currentlyOn };
   });
   // sort descending by currentlyOn
@@ -95,6 +97,17 @@ app.get("/leaderboard", authMiddleware, (req, res) => {
 app.get("/user-info", authMiddleware, (req, res) => {
   const { username, onCount, offCount, driveChecked } = req.user;
   res.json({ username, onCount, offCount, driveChecked });
+});
+
+// ---------------- NEW ENDPOINT ----------------
+// Leaderboard for all users (useful for statistics page)
+app.get("/leaderboard/all", authMiddleware, (req, res) => {
+  const all = Object.values(users).map(u => {
+    const currentlyOn = Math.max((u.onCount || 0) - (u.offCount || 0), 0);
+    return { username: u.username, currentlyOn };
+  });
+  all.sort((a, b) => b.currentlyOn - a.currentlyOn);
+  res.json({ users: all });
 });
 
 // Start server
