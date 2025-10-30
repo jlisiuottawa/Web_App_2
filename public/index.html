@@ -85,7 +85,7 @@
   </div>
 
 <script>
-const API_BASE = "https://web-app-2-1.onrender.com"; // Your backend URL
+const API_BASE = window.location.origin; // Use same origin so client talks to this server when deployed from the repo
 
 // ---------------- Auth helpers ----------------
 function saveAuth(token, username) {
