@@ -1,0 +1,63 @@
+:root{
+  --bg:#e6f7fb;
+  --card:#ffffff;
+  --accent:#2f8a2f;
+  --muted:#6b6b6b;
+  --nav:#0b72a6;
+}
+
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:#0b2c35}
+.container{max-width:900px;margin:0 auto;padding-bottom:84px}
+
+/* Header */
+.title-row{display:flex;align-items:center;justify-content:center;padding:18px 8px}
+.title-row h1{margin:0;font-size:28px}
+
+/* Layout rows */
+.top-row{display:flex;gap:16px;padding:0 12px}
+.middle-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;padding:12px}
+
+/* Card style */
+.card{background:var(--card);border-radius:8px;padding:12px;box-shadow:0 2px 6px rgba(0,0,0,0.06)}
+.challenges h2{margin:0 0 8px 0}
+.task{display:flex;align-items:center;gap:8px;margin:8px 0}
+.task input[type="checkbox"]{width:18px;height:18px}
+
+/* Streak + EcoBuddy */
+.streak{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:260px}
+.streak-header{display:flex;align-items:center;gap:8px;font-weight:600;margin-bottom:6px}
+.ecobuddy-large{width:180px;height:200px;display:flex;align-items:center;justify-content:center}
+
+/* Did you know */
+.didyouknow{min-height:92px}
+.didyouknow p{margin:8px 0 0 0;color:var(--muted)}
+
+/* Mood card */
+.mood-card{display:flex;flex-direction:column;align-items:flex-start;justify-content:center}
+.mood-selector{display:flex;align-items:center;gap:12px}
+.mood-options{display:flex;flex-direction:column;gap:10px}
+.mood-btn{font-size:26px;padding:8px;border-radius:8px;border:1px solid #e0e0e0;background:#fff;cursor:pointer}
+.mood-btn:focus{outline:3px solid rgba(47,138,47,0.18)}
+.mood-arrow{font-size:20px;transition:transform 0.25s}
+
+/* Accessories */
+.accessories-btn{background:#0b72a6;color:#fff;border:none;padding:10px 14px;border-radius:10px;cursor:pointer}
+
+/* Modal */
+.modal{position:fixed;left:0;right:0;top:0;bottom:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.4)}
+.modal.hidden{display:none}
+.modal-content{background:#fff;padding:18px;border-radius:10px;width:320px;max-width:90%}
+
+/* Bottom nav */
+.bottom-nav{position:fixed;left:0;right:0;bottom:0;background:linear-gradient(180deg,#0b72a6,#06608b);display:flex;justify-content:space-around;padding:8px 12px;gap:6px;box-shadow:0 -4px 16px rgba(0,0,0,0.18)}
+.nav-btn{background:transparent;border:none;color:#fff;display:flex;flex-direction:column;align-items:center;gap:6px;padding:6px;cursor:pointer;width:64px}
+.nav-btn .icon{width:26px;height:26px;fill:#fff;opacity:0.95}
+.nav-btn span{font-size:11px}
+
+/* Responsiveness */
+@media (max-width:740px){
+  .top-row{flex-direction:column;padding:0 12px}
+  .middle-row{grid-template-columns:1fr;gap:12px;padding:12px}
+  .container{padding-bottom:110px}
+}
