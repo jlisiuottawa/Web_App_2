@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>EcoBuddy — Home</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="container">
+    <header class="title-row">
+      <h1>Home</h1>
+    </header>
+
+    <section class="top-row">
+      <div class="card challenges" id="challengesCard">
+        <h2>Daily Challenges:</h2>
+        <label class="task">
+          <input type="checkbox" id="challenge-1" />
+          <span>Turn the lights off after leaving a room</span>
+        </label>
+        <label class="task">
+          <input type="checkbox" id="challenge-2" />
+          <span>Do a screen-free activity</span>
+        </label>
+      </div>
+
+      <div class="card streak" id="streakCard">
+        <div class="streak-header">
+          <span class="fire">🔥</span>
+          <span id="streakText">0-day streak</span>
+        </div>
+        <div class="ecobuddy-large" id="ecobuddyGraphic" aria-hidden="true">
+          <!-- Leaf character rendered with inline SVG (CSS styled) -->
+          <svg id="leafSvg" viewBox="0 0 200 240" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="g" x1="0" x2="1">
+                <stop offset="0" stop-color="#86C166"/>
+                <stop offset="1" stop-color="#2F8A2F"/>
+              </linearGradient>
+            </defs>
+            <g>
+              <path d="M100 10 C40 40 10 90 10 150 C10 200 50 220 100 220 C150 220 190 200 190 150 C190 90 160 40 100 10 Z" fill="url(#g)"/>
+              <!-- Eyes -->
+              <circle cx="80" cy="110" r="6" fill="#1b1b1b"/>
+              <circle cx="120" cy="110" r="6" fill="#1b1b1b"/>
+              <!-- Smile -->
+              <path d="M80 130 Q100 145 120 130" stroke="#1b1b1b" stroke-width="3" fill="none" stroke-linecap="round"/>
+            </g>
+          </svg>
+        </div>
+      </div>
+    </section>
+
+    <section class="middle-row">
+      <div class="card didyouknow">
+        <h3>Did You Know?</h3>
+        <p>Turning off unused lights can reduce an energy bill by 10%</p>
+      </div>
+
+      <div class="card mood-card" aria-label="EcoBuddy Mood">
+        <h3>EcoBuddy Mood</h3>
+        <div class="mood-selector">
+          <div class="mood-arrow" id="moodArrow">➡️</div>
+          <div class="mood-options" id="moodOptions">
+            <button class="mood-btn" data-mood="happy" aria-label="Happy mood">😊</button>
+            <button class="mood-btn" data-mood="neutral" aria-label="Neutral mood">😐</button>
+            <button class="mood-btn" data-mood="sad" aria-label="Sad mood">☹️</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card accessories-card">
+        <button id="accessoriesBtn" class="accessories-btn">My accessories</button>
+      </div>
+    </section>
+
+    <div id="accessoriesModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="accessoriesTitle">
+      <div class="modal-content">
+        <h2 id="accessoriesTitle">Accessories</h2>
+        <p>Customize EcoBuddy (placeholder). Add/help link to accessories management.</p>
+        <button id="closeAccessories">Close</button>
+      </div>
+    </div>
+
+    <nav class="bottom-nav" role="navigation" aria-label="Primary">
+      <button class="nav-btn" id="navHome" title="Home">
+        <svg viewBox="0 0 24 24" class="icon"><path d="M12 3L2 12h3v9h6V15h2v6h6v-9h3z"/></svg>
+        <span>Home</span>
+      </button>
+
+      <button class="nav-btn" id="navAdd" title="Add Task">
+        <svg viewBox="0 0 24 24" class="icon"><path d="M19 11H13V5h-2v6H5v2h6v6h2v-6h6z"/></svg>
+        <span>Add Task</span>
+      </button>
+
+      <button class="nav-btn" id="navFriends" title="My Friends">
+        <svg viewBox="0 0 24 24" class="icon"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zM8 11c1.66 0 3-1.34 3-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5C15 14.17 10.33 13 8 13zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 2 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+        <span>My Friends</span>
+      </button>
+
+      <button class="nav-btn" id="navStats" title="My Energy Stats">
+        <svg viewBox="0 0 24 24" class="icon"><path d="M3 13h2v-2H3v2zm4 6h2V7H7v12zm4 0h2v-8h-2v8zm4 0h2v-4h-2v4z"/></svg>
+        <span>My Energy Stats</span>
+      </button>
+
+      <button class="nav-btn" id="navSettings" title="Settings">
+        <svg viewBox="0 0 24 24" class="icon"><path d="M19.14 12.936a7.953 7.953 0 00.06-1 . 8 0 000-.936l2.03-1.58-1.9-3.3-2.42.98a8.12 8.12 0 00-1.6-.94l-.37-2.6h-3.8l-.38 2.6c-.55.22-1.07.5-1.56.84L6.66 5.04 4.77 8.34l2.03 1.58c-.04.33-.06.67-.06 1s.02.67.06 1L4.77 14.7l1.89 3.3 2.42-.98c.49.34 1.01.62 1.56.84l.38 2.6h3.8l.37-2.6c.57-.22 1.12-.5 1.6-.94l2.42.98 1.9-3.3-2.03-1.58zM12 15.5A3.5 3.5 0 1112 8.5a3.5 3.5 0 010 7z"/></svg>
+        <span>Settings</span>
+      </button>
+    </nav>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
