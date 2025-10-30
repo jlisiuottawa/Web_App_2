@@ -1,0 +1,13 @@
+# EcoBuddy Home UI
+
+This folder adds a static "Home" screen for the EcoBuddy app with the following features visible in the provided image:
+
+- Daily Challenges (two checkboxes) — persistent per-day via localStorage
+- Streak counter (increments when all daily challenges are completed for a day) with flame visual
+- Did You Know info card
+- EcoBuddy character rendered as inline SVG
+- EcoBuddy Mood selector (happy / neutral / sad) with arrow and persistent selection
+- "My accessories" button which opens a modal (placeholder for accessory management)
+- Bottom navigation bar (Home, Add Task, My Friends, My Energy Stats, Settings) — buttons are present and wired to placeholder handlers
+
+Open `ecobuddy-home/index.html` in a browser to run the demo locally.
